@@ -117,6 +117,10 @@
       background: rgba(255, 255, 255, 0.1);
     }
 
+    .control-btn.active {
+      color: #1db954;
+    }
+
     .play-btn {
       background: #1db954;
       color: black;
@@ -207,9 +211,11 @@
     </div>
 
     <div class="controls">
+      <button class="control-btn" id="shuffleBtn">🔀</button>
       <button class="control-btn" id="prevBtn">⏮</button>
       <button class="control-btn play-btn" id="playBtn">▶</button>
       <button class="control-btn" id="nextBtn">⏭</button>
+      <button class="control-btn" id="repeatBtn">🔁</button>
     </div>
 
     <div class="volume-container">
@@ -223,54 +229,38 @@
   </div>
 
   <script>
-    // === ОПЦИОНАЛЬНО: кастомные названия и исполнители ===
-    // Формат: "имя_файла.mp3": { title: "Красивое название", artist: "Исполнитель" }
     const customTitles = {
-      // Пример:
+      // Примеры:
       // "KHAOS_Jmilton_-_Montagem_Supersonic_Muzvoy.com_(SkySound.cc).mp3": { title: "Montagem Supersonic", artist: "KHAOS, Jmilton" },
-      // "dogewell-vishnyovaya-semyorka-mp3.mp3": { title: "Вишнёвая Семёрка", artist: "Dogewell" }
     };
 
-    // === Автоматическое сканирование (вручную указываем файлы, но без метаданных) ===
-    // Просто перечисли имена файлов в папке songs/
     const songFiles = [
       "Artur_Pirozhkov_-_Esli_hochesh_tancevat_tancuj_tancuj_Muzjan.com_(SkySound.cc).mp3",
       "ATLXS - PASSO BEM SOLTO - Slowed.mp3",
       "dogewell-vishnyovaya-semyorka-mp3.mp3",
       "Jmilton - Montagem Bandido (feat. Itamar Mc).mp3",
       "KHAOS_Jmilton_-_Montagem_Supersonic_Muzvoy.com_(SkySound.cc).mp3"
-    
-      // Добавляй сюда новые файлы по мере появления
-      // Можно скопировать список из проводника и заменить расширения на .mp3
     ];
 
-    // === Генерация треков на основе файлов + кастомных данных ===
     const tracks = songFiles.map(file => {
       const custom = customTitles[file];
       if (custom) {
-        return {
-          title: custom.title,
-          artist: custom.artist,
-          file: file
-        };
+        return { title: custom.title, artist: custom.artist, file: file };
       } else {
-        // Автоматическое название из имени файла
-        let title = file.replace(/\.mp3$/i, '')          // убрать .mp3
-                         .replace(/_/g, ' ')             // _ → пробел
-                         .replace(/\b\w/g, l => l.toUpperCase()); // Заглавные буквы
-        return {
-          title: title,
-          artist: "Неизвестен",
-          file: file
-        };
+        let title = file.replace(/\.mp3$/i, '')
+                         .replace(/_/g, ' ')
+                         .replace(/\b\w/g, l => l.toUpperCase());
+        return { title, artist: "Неизвестен", file };
       }
     });
 
-    // === ОСТАЛЬНОЙ КОД ПЛЕЕРА (без изменений) ===
+    // Элементы DOM
     const audio = document.getElementById('audio');
     const playBtn = document.getElementById('playBtn');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
+    const shuffleBtn = document.getElementById('shuffleBtn');
+    const repeatBtn = document.getElementById('repeatBtn');
     const progressBar = document.getElementById('progressBar');
     const progress = document.getElementById('progress');
     const currentTimeEl = document.getElementById('currentTime');
@@ -280,10 +270,14 @@
     const trackArtistEl = document.getElementById('trackArtist');
     const playlistEl = document.getElementById('playlist');
 
+    // Состояния
     let currentTrackIndex = 0;
+    let isShuffle = false;
+    let isRepeat = false;
 
     audio.volume = volumeSlider.value;
 
+    // === Функции ===
     function renderPlaylist() {
       playlistEl.innerHTML = '';
       tracks.forEach((track, index) => {
@@ -309,10 +303,36 @@
       playBtn.textContent = '▶';
     }
 
+    function playTrack() {
+      audio.play().catch(e => console.log("Воспроизведение заблокировано:", e));
+      playBtn.textContent = '⏸';
+    }
+
+    function getNextTrackIndex() {
+      if (isShuffle) {
+        let newIndex;
+        do {
+          newIndex = Math.floor(Math.random() * tracks.length);
+        } while (newIndex === currentTrackIndex && tracks.length > 1);
+        return newIndex;
+      } else {
+        return (currentTrackIndex + 1) % tracks.length;
+      }
+    }
+
+    function getPrevTrackIndex() {
+      if (isShuffle) {
+        // В shuffle режиме "назад" просто возвращает к предыдущему (можно улучшить с историей)
+        return (currentTrackIndex - 1 + tracks.length) % tracks.length;
+      } else {
+        return (currentTrackIndex - 1 + tracks.length) % tracks.length;
+      }
+    }
+
+    // === Слушатели кнопок ===
     playBtn.addEventListener('click', () => {
       if (audio.paused) {
-        audio.play().catch(e => console.log("Воспроизведение заблокировано:", e));
-        playBtn.textContent = '⏸';
+        playTrack();
       } else {
         audio.pause();
         playBtn.textContent = '▶';
@@ -320,17 +340,28 @@
     });
 
     nextBtn.addEventListener('click', () => {
-      currentTrackIndex = (currentTrackIndex + 1) % tracks.length;
+      currentTrackIndex = getNextTrackIndex();
       loadTrack(currentTrackIndex);
-      audio.play();
+      playTrack();
     });
 
     prevBtn.addEventListener('click', () => {
-      currentTrackIndex = (currentTrackIndex - 1 + tracks.length) % tracks.length;
+      currentTrackIndex = getPrevTrackIndex();
       loadTrack(currentTrackIndex);
-      audio.play();
+      playTrack();
     });
 
+    shuffleBtn.addEventListener('click', () => {
+      isShuffle = !isShuffle;
+      shuffleBtn.classList.toggle('active', isShuffle);
+    });
+
+    repeatBtn.addEventListener('click', () => {
+      isRepeat = !isRepeat;
+      repeatBtn.classList.toggle('active', isRepeat);
+    });
+
+    // === Аудио события ===
     audio.addEventListener('timeupdate', () => {
       const currentTime = audio.currentTime;
       const duration = audio.duration || 0;
@@ -352,7 +383,12 @@
     });
 
     audio.addEventListener('ended', () => {
-      nextBtn.click();
+      if (isRepeat) {
+        audio.currentTime = 0;
+        playTrack();
+      } else {
+        nextBtn.click();
+      }
     });
 
     function formatTime(seconds) {
@@ -362,6 +398,7 @@
       return `${min}:${sec < 10 ? '0' : ''}${sec}`;
     }
 
+    // === Инициализация ===
     if (tracks.length > 0) {
       loadTrack(0);
     }
