@@ -4,6 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>KotoMusicBeta</title>
+  <!-- PWA: Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  <!-- PWA: Theme color for address bar -->
+  <meta name="theme-color" content="#121212">
   <style>
     * {
       margin: 0;
@@ -321,12 +325,7 @@
     }
 
     function getPrevTrackIndex() {
-      if (isShuffle) {
-        // В shuffle режиме "назад" просто возвращает к предыдущему (можно улучшить с историей)
-        return (currentTrackIndex - 1 + tracks.length) % tracks.length;
-      } else {
-        return (currentTrackIndex - 1 + tracks.length) % tracks.length;
-      }
+      return (currentTrackIndex - 1 + tracks.length) % tracks.length;
     }
 
     // === Слушатели кнопок ===
@@ -403,6 +402,13 @@
       loadTrack(0);
     }
     renderPlaylist();
+
+    // === PWA: Service Worker Registration ===
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(console.error);
+      });
+    }
   </script>
 </body>
 </html>
