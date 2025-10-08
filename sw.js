@@ -1,22 +1,15 @@
+// sw.js
 const CACHE_NAME = 'kotomusic-v1';
-const urlsToCache = [
-  '/',
-  '/index.html'
-  // Не кэшируем /songs/ — слишком объёмно и не обязательно для базовой PWA
-];
 
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
-  );
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
 });
 
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        return response || fetch(event.request);
-      })
-  );
+self.addEventListener('activate', (event) => {
+  event.waitUntil(clients.claim());
+});
+
+self.addEventListener('fetch', (event) => {
+  // Просто пропускаем запросы — кэширование не обязательно для установки PWA
+  // Главное — SW зарегистрирован и активен
 });
